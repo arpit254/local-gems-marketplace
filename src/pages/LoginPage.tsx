@@ -7,6 +7,18 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth';
 
 function getAuthErrorMessage(error: unknown) {
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    if (error.message === 'Failed to fetch') {
+      return 'Unable to reach Supabase. Check your internet connection, browser extensions, and Supabase project settings.';
+    }
+
+    return error.message;
+  }
+
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    return 'Unable to reach Supabase. Check your internet connection, browser extensions, and Supabase project settings.';
+  }
+
   if (error instanceof AuthApiError) {
     return error.message;
   }
@@ -25,6 +37,9 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState(
+    typeof location.state?.message === 'string' ? location.state.message : ''
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -40,11 +55,16 @@ export default function LoginPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
     setIsSubmitting(true);
 
     try {
-      await signIn({ email, password });
+      const result = await signIn({ email, password });
+      const from = typeof location.state?.from === 'string' ? location.state.from : null;
+      const fallbackRoute = result.profile.role === 'vendor' ? '/vendor' : '/customer';
+      navigate(from ?? fallbackRoute, { replace: true });
     } catch (error) {
+      console.error('[auth-ui] Login submission failed', error);
       setErrorMessage(getAuthErrorMessage(error));
     } finally {
       setIsSubmitting(false);
@@ -87,6 +107,12 @@ export default function LoginPage() {
           {errorMessage && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {errorMessage}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="rounded-lg border border-accent bg-accent px-3 py-2 text-sm text-accent-foreground">
+              {successMessage}
             </div>
           )}
 

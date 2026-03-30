@@ -2,15 +2,14 @@ import { ArrowRight, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { useCreateOrder } from '@/hooks/use-marketplace';
 import { useAuth } from '@/lib/auth';
+import { saveCheckoutSession } from '@/lib/checkout';
 import { useCart } from '@/lib/cart-context';
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, clearCart, totalPrice } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { items, updateQuantity, removeItem, totalPrice } = useCart();
+  const { isAuthenticated, profile } = useAuth();
   const navigate = useNavigate();
-  const createOrder = useCreateOrder();
 
   const vendorGroups = items.reduce((acc, item) => {
     const vendorName = item.vendorProduct.vendor.name;
@@ -21,39 +20,35 @@ export default function CartPage() {
     return acc;
   }, {} as Record<string, typeof items>);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!isAuthenticated) {
       toast.error('Please log in before placing your order.');
       navigate('/login', { state: { from: '/cart' } });
       return;
     }
 
-    try {
-      const groups = Object.values(vendorGroups);
-      await Promise.all(
-        groups.map((group) =>
-          createOrder.mutateAsync({
-            items: group,
-            vendorId: group[0].vendorProduct.vendor.id,
-          })
-        )
-      );
-      toast.success('Order placed successfully! ðŸŽ‰');
-      clearCart();
-      navigate('/orders');
-    } catch (error) {
-      console.error(error);
-      toast.error('Could not save your order to Supabase.');
-    }
+    saveCheckoutSession({
+      createdAt: new Date().toISOString(),
+      customerName: profile?.name ?? 'Guest Customer',
+      items,
+      totalAmount: totalPrice,
+    });
+
+    navigate('/payment', {
+      state: {
+        items,
+        totalAmount: totalPrice,
+      },
+    });
   };
 
   if (items.length === 0) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
-        <span className="text-6xl mb-4">ðŸ›’</span>
-        <h1 className="font-display text-2xl font-bold text-foreground mb-2">Your cart is empty</h1>
-        <p className="text-muted-foreground mb-6">Start adding products from local vendors</p>
-        <Button asChild className="gradient-hero text-primary-foreground border-none">
+        <span className="mb-4 text-6xl">Cart</span>
+        <h1 className="mb-2 font-display text-2xl font-bold text-foreground">Your cart is empty</h1>
+        <p className="mb-6 text-muted-foreground">Start adding products from local vendors</p>
+        <Button asChild className="gradient-hero border-none text-primary-foreground">
           <Link to="/search">Browse Products</Link>
         </Button>
       </div>
@@ -62,36 +57,55 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <h1 className="font-display text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
+      <div className="container mx-auto max-w-3xl px-4 py-8">
+        <h1 className="mb-6 flex items-center gap-2 font-display text-2xl font-bold text-foreground">
           <ShoppingBag className="h-6 w-6 text-primary" /> Your Cart
         </h1>
 
         <div className="space-y-6">
           {Object.entries(vendorGroups).map(([vendorName, vendorItems]) => (
-            <div key={vendorName} className="bg-card border rounded-xl overflow-hidden shadow-card">
-              <div className="bg-muted px-4 py-3 border-b">
-                <h3 className="font-display font-semibold text-foreground text-sm">{vendorName}</h3>
+            <div key={vendorName} className="overflow-hidden rounded-xl border bg-card shadow-card">
+              <div className="border-b bg-muted px-4 py-3">
+                <h3 className="font-display text-sm font-semibold text-foreground">{vendorName}</h3>
               </div>
               <div className="divide-y">
-                {vendorItems.map(item => (
+                {vendorItems.map((item) => (
                   <div key={item.vendorProduct.id} className="flex items-center gap-4 p-4">
                     <span className="text-3xl">{item.vendorProduct.product.image}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground text-sm truncate">{item.vendorProduct.product.name}</p>
-                      <p className="text-xs text-muted-foreground">Rs {item.vendorProduct.price} {item.vendorProduct.unit}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{item.vendorProduct.product.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Rs {item.vendorProduct.price} {item.vendorProduct.unit}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.vendorProduct.id, item.quantity - 1)}>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => updateQuantity(item.vendorProduct.id, item.quantity - 1)}
+                      >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="w-6 text-center font-medium text-foreground text-sm">{item.quantity}</span>
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.vendorProduct.id, item.quantity + 1)}>
+                      <span className="w-6 text-center text-sm font-medium text-foreground">{item.quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => updateQuantity(item.vendorProduct.id, item.quantity + 1)}
+                      >
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
-                    <p className="font-display font-bold text-foreground w-16 text-right">Rs {item.vendorProduct.price * item.quantity}</p>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(item.vendorProduct.id)}>
+                    <p className="w-16 text-right font-display font-bold text-foreground">
+                      Rs {item.vendorProduct.price * item.quantity}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => removeItem(item.vendorProduct.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -101,25 +115,25 @@ export default function CartPage() {
           ))}
         </div>
 
-        <div className="mt-8 bg-card border rounded-xl p-5 shadow-card">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mt-8 rounded-xl border bg-card p-5 shadow-card">
+          <div className="mb-4 flex items-center justify-between">
             <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-display font-bold text-foreground text-lg">Rs {totalPrice}</span>
+            <span className="text-lg font-display font-bold text-foreground">Rs {totalPrice}</span>
           </div>
-          <div className="flex items-center justify-between mb-4 text-sm">
+          <div className="mb-4 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Delivery</span>
-            <span className="text-accent-foreground font-medium">Free</span>
+            <span className="font-medium text-accent-foreground">Free</span>
           </div>
-          <div className="border-t pt-4 flex items-center justify-between">
-            <span className="font-display font-bold text-foreground text-lg">Total</span>
-            <span className="font-display font-bold text-foreground text-xl">Rs {totalPrice}</span>
+          <div className="flex items-center justify-between border-t pt-4">
+            <span className="text-lg font-display font-bold text-foreground">Total</span>
+            <span className="text-xl font-display font-bold text-foreground">Rs {totalPrice}</span>
           </div>
           <Button
             onClick={handleCheckout}
-            disabled={createOrder.isPending}
-            className="w-full mt-4 gradient-hero text-primary-foreground border-none h-12 text-base font-semibold"
+            disabled={items.length === 0}
+            className="mt-4 h-12 w-full border-none text-base font-semibold gradient-hero text-primary-foreground"
           >
-            Place Order <ArrowRight className="h-5 w-5 ml-2" />
+            Continue To Payment <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </div>

@@ -7,7 +7,8 @@ import {
   vendorProducts as fallbackVendorProducts,
   vendors as fallbackVendors,
 } from '@/lib/mock-data';
-import type { CartItem, Category, Order, Product, Vendor, VendorProduct } from '@/lib/mock-data';
+import { groupCartItemsByVendor } from '@/lib/checkout';
+import type { CartItem, Category, Order, PaymentMethod, PaymentStatus, Product, Vendor, VendorProduct } from '@/lib/mock-data';
 
 export type MarketplaceData = {
   categories: Category[];
@@ -30,7 +31,15 @@ const FALLBACK_DATA: MarketplaceData = {
 function buildMarketplaceData(input: {
   categories: Array<{ id: string; name: string; emoji: string }>;
   orderItems: Array<{ order_id: string; quantity: number; vendor_product_id: string }>;
-  orders: Array<{ created_at: string; id: string; status: OrderStatus; total: number; vendor_id: string }>;
+  orders: Array<{
+    created_at: string;
+    id: string;
+    payment_method: PaymentMethod;
+    payment_status: PaymentStatus;
+    status: OrderStatus;
+    total: number;
+    vendor_id: string;
+  }>;
   products: Array<{ category_id: string; id: string; image: string; name: string }>;
   vendorProducts: Array<{ id: string; in_stock: boolean; price: number; product_id: string; unit: string; vendor_id: string }>;
   vendors: Array<{
@@ -123,6 +132,8 @@ function buildMarketplaceData(input: {
       createdAt: order.created_at,
       id: order.id,
       items,
+      paymentMethod: order.payment_method,
+      paymentStatus: order.payment_status,
       status: order.status,
       total: order.total,
       vendorName: vendor.name,
@@ -157,14 +168,25 @@ export async function fetchMarketplaceData(): Promise<MarketplaceData> {
     throw new Error(errors.map((error) => error?.message).join(', '));
   }
 
-  let orders: Array<{ created_at: string; id: string; status: OrderStatus; total: number; vendor_id: string }> = [];
+  let orders: Array<{
+    created_at: string;
+    id: string;
+    payment_method: PaymentMethod;
+    payment_status: PaymentStatus;
+    status: OrderStatus;
+    total: number;
+    vendor_id: string;
+  }> = [];
   let orderItems: Array<{ order_id: string; quantity: number; vendor_product_id: string }> = [];
 
   const sessionResult = await supabase.auth.getSession();
 
   if (!sessionResult.error && sessionResult.data.session) {
     const [ordersResult, orderItemsResult] = await Promise.all([
-      supabase.from('orders').select('id, created_at, status, total, vendor_id').order('created_at', { ascending: false }),
+      supabase
+        .from('orders')
+        .select('id, created_at, payment_method, payment_status, status, total, vendor_id')
+        .order('created_at', { ascending: false }),
       supabase.from('order_items').select('order_id, quantity, vendor_product_id'),
     ]);
 
@@ -194,7 +216,16 @@ export function getFallbackMarketplaceData(): MarketplaceData {
 export type CreateOrderInput = {
   customerName?: string;
   items: CartItem[];
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
   vendorId: string;
+};
+
+export type CreateCheckoutOrdersInput = {
+  customerName?: string;
+  items: CartItem[];
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
 };
 
 async function ensureCustomerSession() {
@@ -210,13 +241,21 @@ async function ensureCustomerSession() {
   throw new Error('You must be logged in to place an order.');
 }
 
-export async function createOrder({ customerName = 'Guest Customer', items, vendorId }: CreateOrderInput) {
+export async function createOrder({
+  customerName = 'Guest Customer',
+  items,
+  paymentMethod,
+  paymentStatus,
+  vendorId,
+}: CreateOrderInput) {
   await ensureCustomerSession();
 
   const total = items.reduce((sum, item) => sum + item.vendorProduct.price * item.quantity, 0);
 
   const orderPayload: TablesInsert<'orders'> = {
     customer_name: customerName,
+    payment_method: paymentMethod,
+    payment_status: paymentStatus,
     status: 'placed',
     total,
     vendor_id: vendorId,
@@ -242,4 +281,30 @@ export async function createOrder({ customerName = 'Guest Customer', items, vend
   }
 
   return orderId;
+}
+
+export async function createCheckoutOrders({
+  customerName = 'Guest Customer',
+  items,
+  paymentMethod,
+  paymentStatus,
+}: CreateCheckoutOrdersInput) {
+  if (items.length === 0) {
+    throw new Error('Your cart is empty.');
+  }
+
+  const groupedItems = Array.from(groupCartItemsByVendor(items).entries());
+  const orderIds = await Promise.all(
+    groupedItems.map(([vendorId, vendorItems]) =>
+      createOrder({
+        customerName,
+        items: vendorItems,
+        paymentMethod,
+        paymentStatus,
+        vendorId,
+      })
+    )
+  );
+
+  return orderIds;
 }

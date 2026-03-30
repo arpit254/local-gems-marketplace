@@ -12,6 +12,8 @@ import Index from "./pages/Index";
 import SearchPage from "./pages/SearchPage";
 import CartPage from "./pages/CartPage";
 import OrdersPage from "./pages/OrdersPage";
+import OrderSuccessPage from "./pages/OrderSuccessPage";
+import PaymentPage from "./pages/PaymentPage";
 import VendorDashboard from "./pages/VendorDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import LoginPage from "./pages/LoginPage";
@@ -36,6 +38,22 @@ const App = () => (
               <Route path="/search" element={<SearchPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/dashboard" element={<AuthRedirect />} />
+              <Route
+                path="/payment"
+                element={
+                  <ProtectedRoute requiredRole="customer">
+                    <PaymentPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/order-success"
+                element={
+                  <ProtectedRoute requiredRole="customer">
+                    <OrderSuccessPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/customer"
                 element={

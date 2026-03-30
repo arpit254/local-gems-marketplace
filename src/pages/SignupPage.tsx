@@ -7,6 +7,18 @@ import { Label } from '@/components/ui/label';
 import { useAuth, type AppRole } from '@/lib/auth';
 
 function getAuthErrorMessage(error: unknown) {
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    if (error.message === 'Failed to fetch') {
+      return 'Unable to reach Supabase. Check your internet connection, browser extensions, and Supabase project settings.';
+    }
+
+    return error.message;
+  }
+
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    return 'Unable to reach Supabase. Check your internet connection, browser extensions, and Supabase project settings.';
+  }
+
   if (error instanceof AuthApiError) {
     return error.message;
   }
@@ -44,9 +56,22 @@ export default function SignupPage() {
     setIsSubmitting(true);
 
     try {
-      await signUp({ email, name, password, role });
-      setSuccessMessage('Account created successfully. Redirecting to your dashboard...');
+      const result = await signUp({ email, name, password, role });
+
+      if (result.requiresEmailConfirmation) {
+        setSuccessMessage('Account created. Please confirm your email, then log in to continue.');
+        navigate('/login', {
+          replace: true,
+          state: {
+            message: 'Account created. Check your email for the confirmation link, then log in.',
+          },
+        });
+        return;
+      }
+
+      navigate(result.profile?.role === 'vendor' ? '/vendor' : '/customer', { replace: true });
     } catch (error) {
+      console.error('[auth-ui] Signup submission failed', error);
       setErrorMessage(getAuthErrorMessage(error));
     } finally {
       setIsSubmitting(false);

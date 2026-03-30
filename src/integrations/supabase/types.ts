@@ -74,6 +74,8 @@ export type Database = {
           customer_id: string
           customer_name: string
           id: string
+          payment_method: "online" | "cod"
+          payment_status: "pending" | "paid" | "failed"
           status: "placed" | "accepted" | "out_for_delivery" | "delivered"
           total: number
           updated_at: string
@@ -84,6 +86,8 @@ export type Database = {
           customer_id?: string
           customer_name?: string
           id?: string
+          payment_method?: "online" | "cod"
+          payment_status?: "pending" | "paid" | "failed"
           status?: "placed" | "accepted" | "out_for_delivery" | "delivered"
           total: number
           updated_at?: string
@@ -94,6 +98,8 @@ export type Database = {
           customer_id?: string
           customer_name?: string
           id?: string
+          payment_method?: "online" | "cod"
+          payment_status?: "pending" | "paid" | "failed"
           status?: "placed" | "accepted" | "out_for_delivery" | "delivered"
           total?: number
           updated_at?: string
@@ -138,7 +144,7 @@ export type Database = {
           },
         ]
       }
-      users: {
+      profiles: {
         Row: {
           email: string
           id: string
@@ -246,6 +252,8 @@ export type Database = {
     }
     Enums: {
       order_status: "placed" | "accepted" | "out_for_delivery" | "delivered"
+      payment_method: "online" | "cod"
+      payment_status: "pending" | "paid" | "failed"
       user_role: "customer" | "vendor"
     }
     CompositeTypes: {

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createOrder, fetchMarketplaceData, getFallbackMarketplaceData } from '@/lib/marketplace';
+import { createCheckoutOrders, createOrder, fetchMarketplaceData, getFallbackMarketplaceData } from '@/lib/marketplace';
 
 export const MARKETPLACE_QUERY_KEY = ['marketplace-data'];
 
@@ -40,6 +40,17 @@ export function useCreateOrder() {
 
   return useMutation({
     mutationFn: createOrder,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
+    },
+  });
+}
+
+export function useSubmitCheckout() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createCheckoutOrders,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
     },

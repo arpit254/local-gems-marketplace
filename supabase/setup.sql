@@ -8,6 +8,12 @@ begin
   if not exists (select 1 from pg_type where typname = 'user_role') then
     create type public.user_role as enum ('customer', 'vendor');
   end if;
+  if not exists (select 1 from pg_type where typname = 'payment_method') then
+    create type public.payment_method as enum ('online', 'cod');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'payment_status') then
+    create type public.payment_status as enum ('pending', 'paid', 'failed');
+  end if;
 end $$;
 
 create table if not exists public.categories (
@@ -44,23 +50,49 @@ create table if not exists public.vendor_products (
   in_stock boolean not null default true
 );
 
-create table if not exists public.users (
+create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text not null unique,
   name text not null,
   role public.user_role not null
 );
 
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.tables
+    where table_schema = 'public'
+      and table_name = 'users'
+  ) then
+    insert into public.profiles (id, email, name, role)
+    select id, email, name, role
+    from public.users
+    on conflict (id) do update set
+      email = excluded.email,
+      name = excluded.name,
+      role = excluded.role;
+  end if;
+end $$;
+
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid not null default auth.uid(),
   customer_name text not null default 'Guest Customer',
   vendor_id text not null references public.vendors (id) on delete cascade,
+  payment_method public.payment_method not null default 'cod',
+  payment_status public.payment_status not null default 'pending',
   status public.order_status not null default 'placed',
   total numeric(10, 2) not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.orders
+  add column if not exists payment_method public.payment_method not null default 'cod';
+
+alter table public.orders
+  add column if not exists payment_status public.payment_status not null default 'pending';
 
 create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
@@ -86,7 +118,7 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.users (id, email, name, role)
+  insert into public.profiles (id, email, name, role)
   values (
     new.id,
     coalesce(new.email, ''),
@@ -118,7 +150,7 @@ alter table public.categories enable row level security;
 alter table public.vendors enable row level security;
 alter table public.products enable row level security;
 alter table public.vendor_products enable row level security;
-alter table public.users enable row level security;
+alter table public.profiles enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 
@@ -146,21 +178,21 @@ on public.vendor_products for select
 to anon, authenticated
 using (true);
 
-drop policy if exists "Users read own profile" on public.users;
-create policy "Users read own profile"
-on public.users for select
+drop policy if exists "Profiles read own profile" on public.profiles;
+create policy "Profiles read own profile"
+on public.profiles for select
 to authenticated
 using (id = auth.uid());
 
-drop policy if exists "Users insert own profile" on public.users;
-create policy "Users insert own profile"
-on public.users for insert
+drop policy if exists "Profiles insert own profile" on public.profiles;
+create policy "Profiles insert own profile"
+on public.profiles for insert
 to authenticated
 with check (id = auth.uid());
 
-drop policy if exists "Users update own profile" on public.users;
-create policy "Users update own profile"
-on public.users for update
+drop policy if exists "Profiles update own profile" on public.profiles;
+create policy "Profiles update own profile"
+on public.profiles for update
 to authenticated
 using (id = auth.uid())
 with check (id = auth.uid());

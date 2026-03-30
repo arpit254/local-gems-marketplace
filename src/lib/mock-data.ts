@@ -37,6 +37,10 @@ export interface CartItem {
   quantity: number;
 }
 
+export type PaymentMethod = 'online' | 'cod';
+
+export type PaymentStatus = 'pending' | 'paid' | 'failed';
+
 export interface Order {
   id: string;
   items: CartItem[];
@@ -44,6 +48,8 @@ export interface Order {
   total: number;
   createdAt: string;
   vendorName: string;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
 }
 
 export const categories: Category[] = [
@@ -134,6 +140,8 @@ export const sampleOrders: Order[] = [
     total: 95,
     createdAt: '2026-03-26T10:30:00',
     vendorName: "Ramesh's Fresh Veggies",
+    paymentMethod: 'online',
+    paymentStatus: 'paid',
   },
   {
     id: 'ORD002',
@@ -145,5 +153,7 @@ export const sampleOrders: Order[] = [
     total: 152,
     createdAt: '2026-03-25T14:00:00',
     vendorName: 'Lakshmi Dairy Corner',
+    paymentMethod: 'cod',
+    paymentStatus: 'pending',
   },
 ];
