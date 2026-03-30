@@ -1,12 +1,15 @@
 import { motion } from 'framer-motion';
 import SearchBar from '@/components/SearchBar';
 import CategoryGrid from '@/components/CategoryGrid';
-import { vendors } from '@/lib/mock-data';
 import { Star, MapPin, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useMarketplaceData } from '@/hooks/use-marketplace';
 
 export default function Index() {
+  const { data } = useMarketplaceData();
+  const vendors = data?.vendors ?? [];
+
   return (
     <div className="min-h-screen">
       {/* Hero */}

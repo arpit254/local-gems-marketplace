@@ -1,10 +1,10 @@
-import { useSearchParams } from 'react-router-dom';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { SlidersHorizontal } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
 import VendorProductCard from '@/components/VendorProductCard';
-import { searchProducts, getVendorsForProduct, getProductsByCategory, categories, vendorProducts } from '@/lib/mock-data';
-import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useMarketplaceData } from '@/hooks/use-marketplace';
 
 type SortBy = 'price_asc' | 'price_desc' | 'rating' | 'distance';
 
@@ -12,34 +12,62 @@ export default function SearchPage() {
   const [params] = useSearchParams();
   const query = params.get('q') || '';
   const category = params.get('category') || '';
+  const vendorId = params.get('vendor') || '';
   const [sortBy, setSortBy] = useState<SortBy>('price_asc');
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+  const { data, isLoading } = useMarketplaceData();
+  const products = data?.products ?? [];
+  const categories = data?.categories ?? [];
+  const vendorProducts = data?.vendorProducts ?? [];
 
   const results = useMemo(() => {
-    let matchedProducts = query
-      ? searchProducts(query)
-      : category
-      ? getProductsByCategory(category)
-      : searchProducts('');
+    const normalizedQuery = query.toLowerCase().trim();
+    const matchedProducts = products.filter((product) => {
+      if (category && product.category !== category) {
+        return false;
+      }
 
-    let vps = matchedProducts.flatMap(p => getVendorsForProduct(p.id));
+      if (!normalizedQuery) {
+        return true;
+      }
 
-    // Price filter
-    vps = vps.filter(vp => vp.price >= priceRange[0] && vp.price <= priceRange[1]);
+      return (
+        product.name.toLowerCase().includes(normalizedQuery) ||
+        product.category.toLowerCase().includes(normalizedQuery)
+      );
+    });
 
-    // Sort
-    switch (sortBy) {
-      case 'price_asc': vps.sort((a, b) => a.price - b.price); break;
-      case 'price_desc': vps.sort((a, b) => b.price - a.price); break;
-      case 'rating': vps.sort((a, b) => b.vendor.rating - a.vendor.rating); break;
-      case 'distance': vps.sort((a, b) => parseFloat(a.vendor.distance) - parseFloat(b.vendor.distance)); break;
+    const productIds = new Set(matchedProducts.map((product) => product.id));
+    let listings = vendorProducts.filter((vendorProduct) => productIds.has(vendorProduct.product.id));
+
+    if (vendorId) {
+      listings = listings.filter((vendorProduct) => vendorProduct.vendor.id === vendorId);
     }
 
-    return vps;
-  }, [query, category, sortBy, priceRange]);
+    listings = listings.filter((vendorProduct) => (
+      vendorProduct.price >= priceRange[0] && vendorProduct.price <= priceRange[1]
+    ));
 
-  const title = query ? `Results for "${query}"` : category ? category : 'All Products';
+    switch (sortBy) {
+      case 'price_asc':
+        listings.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_desc':
+        listings.sort((a, b) => b.price - a.price);
+        break;
+      case 'rating':
+        listings.sort((a, b) => b.vendor.rating - a.vendor.rating);
+        break;
+      case 'distance':
+        listings.sort((a, b) => parseFloat(a.vendor.distance) - parseFloat(b.vendor.distance));
+        break;
+    }
+
+    return listings;
+  }, [category, priceRange, products, query, sortBy, vendorId, vendorProducts]);
+
+  const title = query ? `Results for "${query}"` : category ? category : vendorId ? 'Vendor Products' : 'All Products';
 
   return (
     <div className="min-h-screen">
@@ -76,13 +104,13 @@ export default function SearchPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Max price: ₹{priceRange[1]}</label>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Max price: Rs {priceRange[1]}</label>
               <input
                 type="range"
                 min={0}
                 max={500}
                 value={priceRange[1]}
-                onChange={e => setPriceRange([0, parseInt(e.target.value)])}
+                onChange={e => setPriceRange([0, parseInt(e.target.value, 10)])}
                 className="accent-primary"
               />
             </div>
@@ -102,9 +130,14 @@ export default function SearchPage() {
           </div>
         )}
 
-        {results.length === 0 ? (
+        {isLoading ? (
           <div className="text-center py-20">
-            <span className="text-5xl block mb-4">🔍</span>
+            <h2 className="font-display text-xl font-semibold text-foreground mb-2">Loading products...</h2>
+            <p className="text-muted-foreground">Fetching the latest vendor listings from Supabase.</p>
+          </div>
+        ) : results.length === 0 ? (
+          <div className="text-center py-20">
+            <span className="text-5xl block mb-4">Search</span>
             <h2 className="font-display text-xl font-semibold text-foreground mb-2">No results found</h2>
             <p className="text-muted-foreground">Try searching for something else</p>
           </div>

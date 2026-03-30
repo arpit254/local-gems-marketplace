@@ -1,3 +1,9 @@
+export interface Category {
+  id: string;
+  name: string;
+  emoji: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -40,7 +46,7 @@ export interface Order {
   vendorName: string;
 }
 
-export const categories = [
+export const categories: Category[] = [
   { id: '1', name: 'Vegetables', emoji: '🥬' },
   { id: '2', name: 'Fruits', emoji: '🍎' },
   { id: '3', name: 'Dairy', emoji: '🥛' },

@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { products } from '@/lib/mock-data';
+import { useMarketplaceData } from '@/hooks/use-marketplace';
 
 export default function SearchBar({ large = false }: { large?: boolean }) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const navigate = useNavigate();
+  const { data } = useMarketplaceData();
+  const products = data?.products ?? [];
 
   const handleChange = (val: string) => {
     setQuery(val);

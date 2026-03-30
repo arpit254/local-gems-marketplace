@@ -1,19 +1,18 @@
 import { useState } from 'react';
-import { vendorProducts, products } from '@/lib/mock-data';
+import { CheckCircle, Edit, Package, Plus, ShoppingBag, Trash2, TrendingUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Package, Plus, Edit, Trash2, ShoppingBag, CheckCircle, X, TrendingUp } from 'lucide-react';
+import { useMarketplaceData } from '@/hooks/use-marketplace';
 
-const myVendorId = 'v1'; // Mock: current vendor
+const myVendorId = 'v1';
 
 export default function VendorDashboard() {
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
-  const myProducts = vendorProducts.filter(vp => vp.vendor.id === myVendorId);
-
-  const mockOrders = [
-    { id: 'VO001', customer: 'Priya S.', items: 'Tomatoes × 2, Onions × 1', total: 110, status: 'pending' as const },
-    { id: 'VO002', customer: 'Arjun M.', items: 'Bananas × 1, Green Chillies × 2', total: 75, status: 'accepted' as const },
-    { id: 'VO003', customer: 'Sneha K.', items: 'Potatoes × 3', total: 75, status: 'delivered' as const },
-  ];
+  const { data, isLoading } = useMarketplaceData();
+  const myProducts = (data?.vendorProducts ?? []).filter((vendorProduct) => vendorProduct.vendor.id === myVendorId);
+  const vendor = (data?.vendors ?? []).find((entry) => entry.id === myVendorId);
+  const vendorOrders = (data?.orders ?? []).filter((order) =>
+    order.items.some((item) => item.vendorProduct.vendor.id === myVendorId)
+  );
 
   return (
     <div className="min-h-screen">
@@ -21,22 +20,21 @@ export default function VendorDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">Vendor Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Ramesh's Fresh Veggies</p>
+            <p className="text-sm text-muted-foreground">{vendor?.name ?? "Ramesh's Fresh Veggies"}</p>
           </div>
           <Button className="gradient-hero text-primary-foreground border-none">
             <Plus className="h-4 w-4 mr-2" /> Add Product
           </Button>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Products', value: myProducts.length, icon: Package },
-            { label: 'Orders Today', value: 12, icon: ShoppingBag },
-            { label: "Today's Revenue", value: '₹1,240', icon: TrendingUp },
-            { label: 'Rating', value: '4.5 ⭐', icon: CheckCircle },
-          ].map((stat, i) => (
-            <div key={i} className="bg-card border rounded-xl p-4 shadow-card">
+            { label: 'Orders Today', value: vendorOrders.length, icon: ShoppingBag },
+            { label: "Today's Revenue", value: `Rs ${vendorOrders.reduce((sum, order) => sum + order.total, 0)}`, icon: TrendingUp },
+            { label: 'Rating', value: vendor ? `${vendor.rating} star` : 'N/A', icon: CheckCircle },
+          ].map((stat, index) => (
+            <div key={index} className="bg-card border rounded-xl p-4 shadow-card">
               <stat.icon className="h-5 w-5 text-primary mb-2" />
               <p className="font-display text-xl font-bold text-foreground">{stat.value}</p>
               <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -44,7 +42,6 @@ export default function VendorDashboard() {
           ))}
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-2 mb-6">
           <Button
             variant={activeTab === 'products' ? 'default' : 'outline'}
@@ -66,15 +63,15 @@ export default function VendorDashboard() {
 
         {activeTab === 'products' ? (
           <div className="space-y-3">
-            {myProducts.map(vp => (
-              <div key={vp.id} className="bg-card border rounded-xl p-4 shadow-card flex items-center gap-4">
-                <span className="text-3xl">{vp.product.image}</span>
+            {myProducts.map((vendorProduct) => (
+              <div key={vendorProduct.id} className="bg-card border rounded-xl p-4 shadow-card flex items-center gap-4">
+                <span className="text-3xl">{vendorProduct.product.image}</span>
                 <div className="flex-1">
-                  <p className="font-medium text-foreground">{vp.product.name}</p>
-                  <p className="text-sm text-muted-foreground">₹{vp.price} {vp.unit}</p>
+                  <p className="font-medium text-foreground">{vendorProduct.product.name}</p>
+                  <p className="text-sm text-muted-foreground">Rs {vendorProduct.price} {vendorProduct.unit}</p>
                 </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${vp.inStock ? 'bg-accent text-accent-foreground' : 'bg-destructive/10 text-destructive'}`}>
-                  {vp.inStock ? 'In Stock' : 'Out of Stock'}
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${vendorProduct.inStock ? 'bg-accent text-accent-foreground' : 'bg-destructive/10 text-destructive'}`}>
+                  {vendorProduct.inStock ? 'In Stock' : 'Out of Stock'}
                 </span>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="icon" className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
@@ -82,28 +79,35 @@ export default function VendorDashboard() {
                 </div>
               </div>
             ))}
+            {!isLoading && myProducts.length === 0 && (
+              <div className="bg-card border rounded-xl p-6 text-sm text-muted-foreground shadow-card">
+                No vendor products found in Supabase yet.
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
-            {mockOrders.map(order => (
+            {vendorOrders.map((order) => (
               <div key={order.id} className="bg-card border rounded-xl p-4 shadow-card">
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="font-display font-semibold text-foreground">#{order.id}</p>
-                    <p className="text-sm text-muted-foreground">{order.customer}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
                   </div>
                   <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                    order.status === 'pending' ? 'bg-secondary/10 text-secondary' :
+                    order.status === 'placed' ? 'bg-secondary/10 text-secondary' :
                     order.status === 'accepted' ? 'bg-accent text-accent-foreground' :
                     'bg-muted text-muted-foreground'
                   }`}>
                     {order.status}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">{order.items}</p>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {order.items.map((item) => `${item.vendorProduct.product.name} x ${item.quantity}`).join(', ')}
+                </p>
                 <div className="flex items-center justify-between">
-                  <span className="font-display font-bold text-foreground">₹{order.total}</span>
-                  {order.status === 'pending' && (
+                  <span className="font-display font-bold text-foreground">Rs {order.total}</span>
+                  {order.status === 'placed' && (
                     <div className="flex gap-2">
                       <Button size="sm" className="gradient-hero text-primary-foreground border-none">
                         <CheckCircle className="h-4 w-4 mr-1" /> Accept
@@ -116,6 +120,11 @@ export default function VendorDashboard() {
                 </div>
               </div>
             ))}
+            {!isLoading && vendorOrders.length === 0 && (
+              <div className="bg-card border rounded-xl p-6 text-sm text-muted-foreground shadow-card">
+                No Supabase orders have been placed for this vendor yet.
+              </div>
+            )}
           </div>
         )}
       </div>

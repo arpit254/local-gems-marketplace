@@ -14,7 +14,229 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          emoji: string
+          id: string
+          name: string
+        }
+        Insert: {
+          emoji: string
+          id?: string
+          name: string
+        }
+        Update: {
+          emoji?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          id: string
+          order_id: string
+          quantity: number
+          vendor_product_id: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          quantity: number
+          vendor_product_id: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          quantity?: number
+          vendor_product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_vendor_product_id_fkey"
+            columns: ["vendor_product_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          customer_id: string
+          customer_name: string
+          id: string
+          status: "placed" | "accepted" | "out_for_delivery" | "delivered"
+          total: number
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string
+          customer_name?: string
+          id?: string
+          status?: "placed" | "accepted" | "out_for_delivery" | "delivered"
+          total: number
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          customer_name?: string
+          id?: string
+          status?: "placed" | "accepted" | "out_for_delivery" | "delivered"
+          total?: number
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category_id: string
+          id: string
+          image: string
+          name: string
+        }
+        Insert: {
+          category_id: string
+          id?: string
+          image: string
+          name: string
+        }
+        Update: {
+          category_id?: string
+          id?: string
+          image?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          email: string
+          id: string
+          name: string
+          role: "customer" | "vendor"
+        }
+        Insert: {
+          email: string
+          id: string
+          name: string
+          role: "customer" | "vendor"
+        }
+        Update: {
+          email?: string
+          id?: string
+          name?: string
+          role?: "customer" | "vendor"
+        }
+        Relationships: []
+      }
+      vendor_products: {
+        Row: {
+          id: string
+          in_stock: boolean
+          price: number
+          product_id: string
+          unit: string
+          vendor_id: string
+        }
+        Insert: {
+          id?: string
+          in_stock?: boolean
+          price: number
+          product_id: string
+          unit: string
+          vendor_id: string
+        }
+        Update: {
+          id?: string
+          in_stock?: boolean
+          price?: number
+          product_id?: string
+          unit?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_products_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          address: string
+          avatar: string
+          distance: string
+          id: string
+          is_open: boolean
+          name: string
+          rating: number
+          review_count: number
+          type: string
+        }
+        Insert: {
+          address: string
+          avatar: string
+          distance: string
+          id?: string
+          is_open?: boolean
+          name: string
+          rating?: number
+          review_count?: number
+          type: string
+        }
+        Update: {
+          address?: string
+          avatar?: string
+          distance?: string
+          id?: string
+          is_open?: boolean
+          name?: string
+          rating?: number
+          review_count?: number
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +245,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      order_status: "placed" | "accepted" | "out_for_delivery" | "delivered"
+      user_role: "customer" | "vendor"
     }
     CompositeTypes: {
       [_ in never]: never

@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion';
-import { categories } from '@/lib/mock-data';
 import { useNavigate } from 'react-router-dom';
+import { useMarketplaceData } from '@/hooks/use-marketplace';
 
 export default function CategoryGrid() {
   const navigate = useNavigate();
+  const { data } = useMarketplaceData();
+  const categories = data?.categories ?? [];
 
   return (
     <section className="py-12">
