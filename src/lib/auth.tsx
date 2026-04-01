@@ -326,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     deleteAccount: async () => {
       console.info('[auth] Deleting current user account');
-      const result = await supabase.rpc('delete_my_account');
+      const result = await supabase.rpc('delete_my_account' as any);
 
       if (result.error) {
         console.error('[auth] Delete account failed', { message: result.error.message });
