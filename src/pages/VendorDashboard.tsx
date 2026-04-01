@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, CheckCircle, Edit, Package, Plus, ShoppingBag, Trash2, TrendingUp, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Edit, Package, Plus, ShoppingBag, Trash2, Truck, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import AccountDangerZone from '@/components/AccountDangerZone';
@@ -350,59 +350,97 @@ export default function VendorDashboard() {
           </div>
         ) : (
           <div className="space-y-3">
-            {vendorOrders.map((order) => (
-              <div key={order.id} className="rounded-xl border bg-card p-4 shadow-card">
-                <div className="mb-2 flex items-center justify-between">
-                  <div>
-                    <p className="font-display font-semibold text-foreground">#{order.id}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
-                  </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      order.status === 'placed'
-                        ? 'bg-secondary/10 text-secondary'
-                      : order.status === 'accepted'
-                        ? 'bg-accent text-accent-foreground'
+            {vendorOrders.map((order) => {
+              const nextStatusMap: Record<string, { status: OrderStatus; label: string; icon: typeof CheckCircle }> = {
+                placed: { status: 'accepted', label: 'Accept', icon: CheckCircle },
+                to_be_confirmed: { status: 'accepted', label: 'Confirm & Accept', icon: CheckCircle },
+                accepted: { status: 'out_for_delivery', label: 'Out for Delivery', icon: Truck },
+                out_for_delivery: { status: 'delivered', label: 'Mark Delivered', icon: Package },
+              };
+              const nextAction = nextStatusMap[order.status];
+              const canReject = order.status === 'placed' || order.status === 'to_be_confirmed';
+              const isTerminal = order.status === 'delivered' || order.status === 'cancelled';
+              const stepMap: Record<string, number> = { to_be_confirmed: 0, placed: 1, accepted: 2, out_for_delivery: 3, delivered: 4, cancelled: 0 };
+              const currentStep = stepMap[order.status] ?? 0;
+
+              return (
+                <div key={order.id} className="rounded-xl border bg-card p-4 shadow-card">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <p className="font-display font-semibold text-foreground">#{order.id.slice(0, 8)}</p>
+                      <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        order.status === 'delivered'
+                          ? 'bg-accent text-accent-foreground'
                         : order.status === 'cancelled'
                           ? 'bg-destructive/10 text-destructive'
+                        : order.status === 'out_for_delivery'
+                          ? 'bg-secondary/10 text-secondary'
+                        : order.status === 'accepted'
+                          ? 'bg-primary/10 text-primary'
                           : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {order.status}
-                  </span>
-                </div>
-                <p className="mb-3 text-sm text-muted-foreground">
-                  {order.items.map((item) => `${item.vendorProduct.product.name} x ${item.quantity}`).join(', ')}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="font-display font-bold text-foreground">Rs {order.total}</span>
-                  {order.status === 'placed' && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="border-none gradient-hero text-primary-foreground"
-                        disabled={updateOrderStatus.isPending}
-                        onClick={() => void handleUpdateOrderStatus(order.id, 'accepted')}
-                      >
-                        <CheckCircle className="mr-1 h-4 w-4" /> Accept
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive"
-                        disabled={updateOrderStatus.isPending}
-                        onClick={() => void handleUpdateOrderStatus(order.id, 'cancelled')}
-                      >
-                        <X className="mr-1 h-4 w-4" /> Reject
-                      </Button>
+                      }`}
+                    >
+                      {order.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+
+                  {/* Progress tracker */}
+                  {!isTerminal && (
+                    <div className="mb-3 flex items-center gap-1">
+                      {[1, 2, 3, 4].map((step) => (
+                        <div key={step} className={`h-1.5 flex-1 rounded-full transition-all ${step <= currentStep ? 'gradient-hero' : 'bg-muted'}`} />
+                      ))}
                     </div>
                   )}
+
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    {order.items.map((item) => `${item.vendorProduct.product.image} ${item.vendorProduct.product.name} × ${item.quantity}`).join(' • ')}
+                  </p>
+
+                  {order.deliveryAddress && (
+                    <p className="mb-2 text-xs text-muted-foreground">📍 {order.deliveryAddress}</p>
+                  )}
+                  {order.phoneNumber && (
+                    <p className="mb-2 text-xs text-muted-foreground">📞 {order.phoneNumber}</p>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <span className="font-display font-bold text-foreground">₹{order.total}</span>
+                    {!isTerminal && (
+                      <div className="flex gap-2">
+                        {nextAction && (
+                          <Button
+                            size="sm"
+                            className="border-none gradient-hero text-primary-foreground"
+                            disabled={updateOrderStatus.isPending}
+                            onClick={() => void handleUpdateOrderStatus(order.id, nextAction.status)}
+                          >
+                            <nextAction.icon className="mr-1 h-4 w-4" /> {nextAction.label}
+                          </Button>
+                        )}
+                        {canReject && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive"
+                            disabled={updateOrderStatus.isPending}
+                            onClick={() => void handleUpdateOrderStatus(order.id, 'cancelled')}
+                          >
+                            <X className="mr-1 h-4 w-4" /> Reject
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {!isLoading && vendorOrders.length === 0 && (
               <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground shadow-card">
-                No Supabase orders have been placed for this vendor yet.
+                No orders have been placed for this vendor yet.
               </div>
             )}
           </div>
