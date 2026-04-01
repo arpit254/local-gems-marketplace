@@ -40,7 +40,7 @@ export default function OrderCard({
           className={`rounded-full px-3 py-1 text-xs font-medium ${
             order.status === 'delivered'
               ? 'bg-accent text-accent-foreground'
-              : order.status === 'cancelled' || order.status === 'rejected'
+              : order.status === 'cancelled'
                 ? 'bg-destructive/10 text-destructive'
                 : 'bg-secondary/10 text-secondary'
           }`}

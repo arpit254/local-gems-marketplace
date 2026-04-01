@@ -391,7 +391,7 @@ export default function VendorDashboard() {
                         variant="outline"
                         className="text-destructive"
                         disabled={updateOrderStatus.isPending}
-                        onClick={() => void handleUpdateOrderStatus(order.id, 'rejected')}
+                        onClick={() => void handleUpdateOrderStatus(order.id, 'cancelled')}
                       >
                         <X className="mr-1 h-4 w-4" /> Reject
                       </Button>
