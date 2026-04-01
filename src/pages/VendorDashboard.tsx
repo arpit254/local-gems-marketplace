@@ -363,7 +363,7 @@ export default function VendorDashboard() {
                         ? 'bg-secondary/10 text-secondary'
                       : order.status === 'accepted'
                         ? 'bg-accent text-accent-foreground'
-                        : order.status === 'rejected'
+                        : order.status === 'cancelled'
                           ? 'bg-destructive/10 text-destructive'
                           : 'bg-muted text-muted-foreground'
                     }`}
