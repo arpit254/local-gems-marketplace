@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { MapPin, SlidersHorizontal, Star } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
 import VendorProductCard from '@/components/VendorProductCard';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ export default function SearchPage() {
   const products = data?.products ?? [];
   const categories = data?.categories ?? [];
   const vendorProducts = data?.vendorProducts ?? [];
+  const categoryOnlyView = Boolean(category && !query.trim() && !vendorId);
+  const showPrice = Boolean(query.trim() || vendorId || !category);
 
   const results = useMemo(() => {
     const normalizedQuery = query.toLowerCase().trim();
@@ -67,6 +69,18 @@ export default function SearchPage() {
     return listings;
   }, [category, priceRange, products, query, sortBy, vendorId, vendorProducts]);
 
+  const vendorResults = useMemo(() => {
+    const uniqueVendors = new Map<string, (typeof results)[number]['vendor']>();
+
+    for (const listing of results) {
+      if (!uniqueVendors.has(listing.vendor.id)) {
+        uniqueVendors.set(listing.vendor.id, listing.vendor);
+      }
+    }
+
+    return Array.from(uniqueVendors.values());
+  }, [results]);
+
   const title = query ? `Results for "${query}"` : category ? category : vendorId ? 'Vendor Products' : 'All Products';
 
   return (
@@ -81,7 +95,9 @@ export default function SearchPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-foreground">{title}</h1>
-            <p className="text-sm text-muted-foreground">{results.length} vendors found</p>
+            <p className="text-sm text-muted-foreground">
+              {categoryOnlyView ? vendorResults.length : results.length} vendors found
+            </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
             <SlidersHorizontal className="h-4 w-4 mr-2" /> Filters
@@ -142,11 +158,59 @@ export default function SearchPage() {
             <p className="text-muted-foreground">Try searching for something else</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {results.map(vp => (
-              <VendorProductCard key={vp.id} vp={vp} />
-            ))}
-          </div>
+          <>
+            {categoryOnlyView ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {vendorResults.map((vendor) => (
+                  <Link
+                    key={vendor.id}
+                    to={`/vendors/${vendor.id}`}
+                    className="rounded-xl border bg-card p-5 shadow-card transition-all hover:-translate-y-1 hover:shadow-card-hover"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{vendor.avatar}</span>
+                        <div>
+                          <h3 className="font-display text-lg font-semibold text-foreground">{vendor.name}</h3>
+                          <p className="text-sm text-muted-foreground">{vendor.type}</p>
+                        </div>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          vendor.isOpen ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {vendor.isOpen ? 'Open' : 'Closed'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-secondary text-secondary" />
+                        {vendor.rating} ({vendor.reviewCount})
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        {vendor.distance}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 border-t pt-4">
+                      <p className="text-sm text-muted-foreground">
+                        View this vendor&apos;s summary and product catalog.
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {results.map((vp) => (
+                  <VendorProductCard key={vp.id} vp={vp} showPrice={showPrice} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

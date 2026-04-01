@@ -12,13 +12,16 @@ export default function CartPage() {
   const navigate = useNavigate();
 
   const vendorGroups = items.reduce((acc, item) => {
-    const vendorName = item.vendorProduct.vendor.name;
-    if (!acc[vendorName]) {
-      acc[vendorName] = [];
+    const vendorId = item.vendorProduct.vendor.id;
+    if (!acc[vendorId]) {
+      acc[vendorId] = {
+        items: [],
+        vendor: item.vendorProduct.vendor,
+      };
     }
-    acc[vendorName].push(item);
+    acc[vendorId].items.push(item);
     return acc;
-  }, {} as Record<string, typeof items>);
+  }, {} as Record<string, { items: typeof items; vendor: (typeof items)[number]['vendorProduct']['vendor'] }>);
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
@@ -30,7 +33,11 @@ export default function CartPage() {
     saveCheckoutSession({
       createdAt: new Date().toISOString(),
       customerName: profile?.name ?? 'Guest Customer',
+      deliveryAddress: '',
+      deliveryInstructions: '',
+      deliveryLandmark: '',
       items,
+      phoneNumber: '',
       totalAmount: totalPrice,
     });
 
@@ -63,13 +70,15 @@ export default function CartPage() {
         </h1>
 
         <div className="space-y-6">
-          {Object.entries(vendorGroups).map(([vendorName, vendorItems]) => (
-            <div key={vendorName} className="overflow-hidden rounded-xl border bg-card shadow-card">
+          {Object.entries(vendorGroups).map(([vendorId, group]) => (
+            <div key={vendorId} className="overflow-hidden rounded-xl border bg-card shadow-card">
               <div className="border-b bg-muted px-4 py-3">
-                <h3 className="font-display text-sm font-semibold text-foreground">{vendorName}</h3>
+                <Link to={`/vendors/${group.vendor.id}`} className="font-display text-sm font-semibold text-foreground hover:text-primary">
+                  {group.vendor.name}
+                </Link>
               </div>
               <div className="divide-y">
-                {vendorItems.map((item) => (
+                {group.items.map((item) => (
                   <div key={item.vendorProduct.id} className="flex items-center gap-4 p-4">
                     <span className="text-3xl">{item.vendorProduct.product.image}</span>
                     <div className="min-w-0 flex-1">

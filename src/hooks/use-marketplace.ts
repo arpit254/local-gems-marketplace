@@ -1,5 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createCheckoutOrders, createOrder, fetchMarketplaceData, getFallbackMarketplaceData } from '@/lib/marketplace';
+import {
+  createCheckoutOrders,
+  createOrder,
+  createVendorProduct,
+  deleteVendorProduct,
+  fetchMarketplaceData,
+  getFallbackMarketplaceData,
+  recreateVendorProfile,
+  updateOrderStatus,
+  updateVendorProduct,
+} from '@/lib/marketplace';
+import type { OrderStatus } from '@/lib/mock-data';
 
 export const MARKETPLACE_QUERY_KEY = ['marketplace-data'];
 
@@ -51,6 +62,64 @@ export function useSubmitCheckout() {
 
   return useMutation({
     mutationFn: createCheckoutOrders,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
+    },
+  });
+}
+
+export function useRecreateVendorProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, name }: { userId: string; name: string }) =>
+      recreateVendorProfile({ userId, name }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
+    },
+  });
+}
+
+export function useCreateVendorProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createVendorProduct,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
+    },
+  });
+}
+
+export function useUpdateVendorProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateVendorProduct,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
+    },
+  });
+}
+
+export function useDeleteVendorProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, vendorProductId }: { productId: string; vendorProductId: string }) =>
+      deleteVendorProduct(vendorProductId, productId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
+    },
+  });
+}
+
+export function useUpdateOrderStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string; status: OrderStatus }) =>
+      updateOrderStatus({ orderId, status }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: MARKETPLACE_QUERY_KEY });
     },

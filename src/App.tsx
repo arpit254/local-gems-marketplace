@@ -14,6 +14,7 @@ import CartPage from "./pages/CartPage";
 import OrdersPage from "./pages/OrdersPage";
 import OrderSuccessPage from "./pages/OrderSuccessPage";
 import PaymentPage from "./pages/PaymentPage";
+import VendorSummaryPage from "./pages/VendorSummaryPage";
 import VendorDashboard from "./pages/VendorDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import LoginPage from "./pages/LoginPage";
@@ -36,12 +37,13 @@ const App = () => (
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/search" element={<SearchPage />} />
+              <Route path="/vendors/:vendorId" element={<VendorSummaryPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/dashboard" element={<AuthRedirect />} />
               <Route
                 path="/payment"
                 element={
-                  <ProtectedRoute requiredRole="customer">
+                  <ProtectedRoute>
                     <PaymentPage />
                   </ProtectedRoute>
                 }
@@ -49,7 +51,7 @@ const App = () => (
               <Route
                 path="/order-success"
                 element={
-                  <ProtectedRoute requiredRole="customer">
+                  <ProtectedRoute>
                     <OrderSuccessPage />
                   </ProtectedRoute>
                 }
@@ -65,7 +67,7 @@ const App = () => (
               <Route
                 path="/orders"
                 element={
-                  <ProtectedRoute requiredRole="customer">
+                  <ProtectedRoute>
                     <OrdersPage />
                   </ProtectedRoute>
                 }

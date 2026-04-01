@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Package, Search, ShoppingBag } from 'lucide-react';
+import AccountDangerZone from '@/components/AccountDangerZone';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useMarketplaceData } from '@/hooks/use-marketplace';
@@ -56,6 +57,10 @@ export default function CustomerDashboard() {
               <Link to="/orders">View orders</Link>
             </Button>
           </div>
+        </div>
+
+        <div className="mt-8">
+          <AccountDangerZone />
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { TablesInsert } from '@/integrations/supabase/types';
+import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import {
   categories as fallbackCategories,
   products as fallbackProducts,
@@ -8,7 +8,7 @@ import {
   vendors as fallbackVendors,
 } from '@/lib/mock-data';
 import { groupCartItemsByVendor } from '@/lib/checkout';
-import type { CartItem, Category, Order, PaymentMethod, PaymentStatus, Product, Vendor, VendorProduct } from '@/lib/mock-data';
+import type { CartItem, Category, Order, OrderStatus, PaymentMethod, PaymentStatus, Product, Vendor, VendorProduct } from '@/lib/mock-data';
 
 export type MarketplaceData = {
   categories: Category[];
@@ -17,8 +17,6 @@ export type MarketplaceData = {
   vendorProducts: VendorProduct[];
   vendors: Vendor[];
 };
-
-type OrderStatus = Order['status'];
 
 const FALLBACK_DATA: MarketplaceData = {
   categories: fallbackCategories,
@@ -34,8 +32,12 @@ function buildMarketplaceData(input: {
   orders: Array<{
     created_at: string;
     id: string;
+    delivery_address: string | null;
+    delivery_instructions: string | null;
+    delivery_landmark: string | null;
     payment_method: PaymentMethod;
     payment_status: PaymentStatus;
+    phone_number: string | null;
     status: OrderStatus;
     total: number;
     vendor_id: string;
@@ -49,6 +51,7 @@ function buildMarketplaceData(input: {
     id: string;
     is_open: boolean;
     name: string;
+    owner_user_id: string | null;
     rating: number;
     review_count: number;
     type: string;
@@ -78,6 +81,7 @@ function buildMarketplaceData(input: {
     id: vendor.id,
     isOpen: vendor.is_open,
     name: vendor.name,
+    ownerUserId: vendor.owner_user_id ?? undefined,
     rating: vendor.rating,
     reviewCount: vendor.review_count,
     type: vendor.type,
@@ -130,10 +134,14 @@ function buildMarketplaceData(input: {
 
     return [{
       createdAt: order.created_at,
+      deliveryAddress: order.delivery_address ?? undefined,
+      deliveryInstructions: order.delivery_instructions ?? undefined,
+      deliveryLandmark: order.delivery_landmark ?? undefined,
       id: order.id,
       items,
       paymentMethod: order.payment_method,
       paymentStatus: order.payment_status,
+      phoneNumber: order.phone_number ?? undefined,
       status: order.status,
       total: order.total,
       vendorName: vendor.name,
@@ -153,7 +161,7 @@ export async function fetchMarketplaceData(): Promise<MarketplaceData> {
   const [categoriesResult, productsResult, vendorsResult, vendorProductsResult] = await Promise.all([
     supabase.from('categories').select('id, name, emoji').order('name'),
     supabase.from('products').select('id, name, image, category_id').order('name'),
-    supabase.from('vendors').select('id, name, type, rating, review_count, distance, address, avatar, is_open').order('name'),
+    supabase.from('vendors').select('id, name, type, rating, review_count, distance, address, avatar, is_open, owner_user_id').order('name'),
     supabase.from('vendor_products').select('id, product_id, vendor_id, price, unit, in_stock'),
   ]);
 
@@ -171,8 +179,12 @@ export async function fetchMarketplaceData(): Promise<MarketplaceData> {
   let orders: Array<{
     created_at: string;
     id: string;
+    delivery_address: string | null;
+    delivery_instructions: string | null;
+    delivery_landmark: string | null;
     payment_method: PaymentMethod;
     payment_status: PaymentStatus;
+    phone_number: string | null;
     status: OrderStatus;
     total: number;
     vendor_id: string;
@@ -185,7 +197,7 @@ export async function fetchMarketplaceData(): Promise<MarketplaceData> {
     const [ordersResult, orderItemsResult] = await Promise.all([
       supabase
         .from('orders')
-        .select('id, created_at, payment_method, payment_status, status, total, vendor_id')
+        .select('id, created_at, delivery_address, delivery_instructions, delivery_landmark, payment_method, payment_status, phone_number, status, total, vendor_id')
         .order('created_at', { ascending: false }),
       supabase.from('order_items').select('order_id, quantity, vendor_product_id'),
     ]);
@@ -215,17 +227,42 @@ export function getFallbackMarketplaceData(): MarketplaceData {
 
 export type CreateOrderInput = {
   customerName?: string;
+  deliveryAddress: string;
+  deliveryInstructions?: string;
+  deliveryLandmark?: string;
   items: CartItem[];
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  phoneNumber: string;
   vendorId: string;
 };
 
 export type CreateCheckoutOrdersInput = {
   customerName?: string;
+  deliveryAddress: string;
+  deliveryInstructions?: string;
+  deliveryLandmark?: string;
   items: CartItem[];
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  phoneNumber: string;
+};
+
+export type UpsertVendorProductInput = {
+  categoryId: string;
+  image: string;
+  inStock: boolean;
+  name: string;
+  price: number;
+  productId?: string;
+  unit: string;
+  vendorId: string;
+  vendorProductId?: string;
+};
+
+export type UpdateOrderStatusInput = {
+  orderId: string;
+  status: OrderStatus;
 };
 
 async function ensureCustomerSession() {
@@ -243,9 +280,13 @@ async function ensureCustomerSession() {
 
 export async function createOrder({
   customerName = 'Guest Customer',
+  deliveryAddress,
+  deliveryInstructions,
+  deliveryLandmark,
   items,
   paymentMethod,
   paymentStatus,
+  phoneNumber,
   vendorId,
 }: CreateOrderInput) {
   await ensureCustomerSession();
@@ -254,8 +295,12 @@ export async function createOrder({
 
   const orderPayload: TablesInsert<'orders'> = {
     customer_name: customerName,
+    delivery_address: deliveryAddress,
+    delivery_instructions: deliveryInstructions ?? null,
+    delivery_landmark: deliveryLandmark ?? null,
     payment_method: paymentMethod,
     payment_status: paymentStatus,
+    phone_number: phoneNumber,
     status: 'placed',
     total,
     vendor_id: vendorId,
@@ -285,9 +330,13 @@ export async function createOrder({
 
 export async function createCheckoutOrders({
   customerName = 'Guest Customer',
+  deliveryAddress,
+  deliveryInstructions,
+  deliveryLandmark,
   items,
   paymentMethod,
   paymentStatus,
+  phoneNumber,
 }: CreateCheckoutOrdersInput) {
   if (items.length === 0) {
     throw new Error('Your cart is empty.');
@@ -298,13 +347,218 @@ export async function createCheckoutOrders({
     groupedItems.map(([vendorId, vendorItems]) =>
       createOrder({
         customerName,
+        deliveryAddress,
+        deliveryInstructions,
+        deliveryLandmark,
         items: vendorItems,
         paymentMethod,
         paymentStatus,
+        phoneNumber,
         vendorId,
       })
     )
   );
 
   return orderIds;
+}
+
+export async function recreateVendorProfile({
+  userId,
+  name,
+}: {
+  userId: string;
+  name: string;
+}) {
+  await ensureCustomerSession();
+
+  const vendorId = `vendor-${userId.slice(0, 8).replace(/-/g, '')}`;
+
+  const result = await supabase
+    .from('vendors')
+    .upsert(
+      {
+        id: vendorId,
+        name: name || 'New Vendor',
+        type: 'Local Shop',
+        rating: 0,
+        review_count: 0,
+        distance: '0 km',
+        address: 'Update your shop address',
+        avatar: '🏪',
+        owner_user_id: userId,
+        is_open: true,
+      },
+      { onConflict: 'owner_user_id' }
+    );
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return vendorId;
+}
+
+export async function createVendorProduct({
+  categoryId,
+  image,
+  inStock,
+  name,
+  price,
+  unit,
+  vendorId,
+}: UpsertVendorProductInput) {
+  await ensureCustomerSession();
+
+  const productId = `product-${crypto.randomUUID()}`;
+  const vendorProductId = `vp-${crypto.randomUUID()}`;
+
+  const productResult = await supabase.from('products').insert({
+    category_id: categoryId,
+    id: productId,
+    image,
+    name,
+  });
+
+  if (productResult.error) {
+    throw productResult.error;
+  }
+
+  const vendorProductResult = await supabase.from('vendor_products').insert({
+    id: vendorProductId,
+    in_stock: inStock,
+    price,
+    product_id: productId,
+    unit,
+    vendor_id: vendorId,
+  });
+
+  if (vendorProductResult.error) {
+    throw vendorProductResult.error;
+  }
+
+  return vendorProductId;
+}
+
+export async function updateVendorProduct({
+  categoryId,
+  image,
+  inStock,
+  name,
+  price,
+  productId,
+  unit,
+  vendorId,
+  vendorProductId,
+}: UpsertVendorProductInput) {
+  await ensureCustomerSession();
+
+  if (!productId || !vendorProductId) {
+    throw new Error('Missing product identifiers for update.');
+  }
+
+  let nextProductId = productId;
+
+  const siblingListingsResult = await supabase
+    .from('vendor_products')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', productId);
+
+  if (siblingListingsResult.error) {
+    throw siblingListingsResult.error;
+  }
+
+  const isSharedProduct = (siblingListingsResult.count ?? 0) > 1;
+
+  if (isSharedProduct) {
+    nextProductId = `product-${crypto.randomUUID()}`;
+
+    const clonedProductResult = await supabase.from('products').insert({
+      category_id: categoryId,
+      id: nextProductId,
+      image,
+      name,
+    });
+
+    if (clonedProductResult.error) {
+      throw clonedProductResult.error;
+    }
+  } else {
+    const productResult = await supabase
+      .from('products')
+      .update({
+        category_id: categoryId,
+        image,
+        name,
+      })
+      .eq('id', productId);
+
+    if (productResult.error) {
+      throw productResult.error;
+    }
+  }
+
+  const vendorProductResult = await supabase
+    .from('vendor_products')
+    .update({
+      in_stock: inStock,
+      price,
+      product_id: nextProductId,
+      unit,
+      vendor_id: vendorId,
+    })
+    .eq('id', vendorProductId);
+
+  if (vendorProductResult.error) {
+    throw vendorProductResult.error;
+  }
+
+  return vendorProductId;
+}
+
+export async function deleteVendorProduct(vendorProductId: string, productId: string) {
+  await ensureCustomerSession();
+
+  const vendorProductResult = await supabase.from('vendor_products').delete().eq('id', vendorProductId);
+
+  if (vendorProductResult.error) {
+    throw vendorProductResult.error;
+  }
+
+  const remainingListingsResult = await supabase
+    .from('vendor_products')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', productId);
+
+  if (remainingListingsResult.error) {
+    throw remainingListingsResult.error;
+  }
+
+  if ((remainingListingsResult.count ?? 0) === 0) {
+    const productResult = await supabase.from('products').delete().eq('id', productId);
+
+    if (productResult.error) {
+      throw productResult.error;
+    }
+  }
+}
+
+export async function updateOrderStatus({ orderId, status }: UpdateOrderStatusInput) {
+  await ensureCustomerSession();
+
+  const payload: TablesUpdate<'orders'> = {
+    status,
+  };
+
+  const result = await supabase
+    .from('orders')
+    .update(payload)
+    .eq('id', orderId)
+    .select('id')
+    .single();
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return result.data.id;
 }

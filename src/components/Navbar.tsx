@@ -2,17 +2,18 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, Menu, Search, ShoppingCart, User, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/lib/auth';
+import { canAccessVendorDashboard, useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart-context';
 
 export default function Navbar() {
   const { totalItems } = useCart();
-  const { isAuthenticated, profile, signOut } = useAuth();
+  const { hasVendorProfile, isAuthenticated, profile, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isVendor = profile?.role === 'vendor';
+  const isVendor = canAccessVendorDashboard(profile, hasVendorProfile);
   const isCustomer = profile?.role === 'customer';
+  const canOrder = isAuthenticated;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -35,7 +36,7 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-1">
           <NavItem to="/" active={isActive('/')}>Home</NavItem>
           <NavItem to="/search" active={isActive('/search')}>Browse</NavItem>
-          {isCustomer && <NavItem to="/orders" active={isActive('/orders')}>My Orders</NavItem>}
+          {canOrder && <NavItem to="/orders" active={isActive('/orders')}>My Orders</NavItem>}
           {isCustomer && <NavItem to="/customer" active={isActive('/customer')}>Dashboard</NavItem>}
           {isVendor && <NavItem to="/vendor" active={isActive('/vendor')}>Vendor Dashboard</NavItem>}
         </div>
@@ -45,7 +46,7 @@ export default function Navbar() {
             <Link to="/search"><Search className="h-5 w-5" /></Link>
           </Button>
 
-          {isCustomer && (
+          {canOrder && (
             <Link to="/cart" className="relative">
               <Button variant="ghost" size="icon" className="text-muted-foreground">
                 <ShoppingCart className="h-5 w-5" />
@@ -93,7 +94,8 @@ export default function Navbar() {
           <MobileNavItem to="/" onClick={() => setMobileOpen(false)}>Home</MobileNavItem>
           <MobileNavItem to="/search" onClick={() => setMobileOpen(false)}>Browse</MobileNavItem>
           {isCustomer && <MobileNavItem to="/customer" onClick={() => setMobileOpen(false)}>Dashboard</MobileNavItem>}
-          {isCustomer && <MobileNavItem to="/orders" onClick={() => setMobileOpen(false)}>My Orders</MobileNavItem>}
+          {canOrder && <MobileNavItem to="/orders" onClick={() => setMobileOpen(false)}>My Orders</MobileNavItem>}
+          {canOrder && <MobileNavItem to="/cart" onClick={() => setMobileOpen(false)}>Cart</MobileNavItem>}
           {isVendor && <MobileNavItem to="/vendor" onClick={() => setMobileOpen(false)}>Vendor Dashboard</MobileNavItem>}
           {!isAuthenticated && <MobileNavItem to="/login" onClick={() => setMobileOpen(false)}>Login</MobileNavItem>}
           {!isAuthenticated && <MobileNavItem to="/signup" onClick={() => setMobileOpen(false)}>Sign up</MobileNavItem>}

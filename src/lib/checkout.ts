@@ -5,7 +5,11 @@ const CHECKOUT_STORAGE_KEY = 'localkart-checkout';
 export type CheckoutSession = {
   createdAt: string;
   customerName: string;
+  deliveryAddress: string;
+  deliveryInstructions: string;
+  deliveryLandmark: string;
   items: CartItem[];
+  phoneNumber: string;
   totalAmount: number;
 };
 

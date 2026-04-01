@@ -3,7 +3,7 @@ create extension if not exists pgcrypto;
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'order_status') then
-    create type public.order_status as enum ('placed', 'accepted', 'out_for_delivery', 'delivered');
+    create type public.order_status as enum ('placed', 'accepted', 'rejected', 'cancelled', 'out_for_delivery', 'delivered');
   end if;
   if not exists (select 1 from pg_type where typname = 'user_role') then
     create type public.user_role as enum ('customer', 'vendor');
@@ -31,8 +31,12 @@ create table if not exists public.vendors (
   distance text not null,
   address text not null,
   avatar text not null,
+  owner_user_id uuid unique,
   is_open boolean not null default true
 );
+
+alter table public.vendors
+  add column if not exists owner_user_id uuid unique;
 
 create table if not exists public.products (
   id text primary key,
@@ -79,6 +83,10 @@ create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid not null default auth.uid(),
   customer_name text not null default 'Guest Customer',
+  phone_number text,
+  delivery_address text,
+  delivery_landmark text,
+  delivery_instructions text,
   vendor_id text not null references public.vendors (id) on delete cascade,
   payment_method public.payment_method not null default 'cod',
   payment_status public.payment_status not null default 'pending',
@@ -93,6 +101,18 @@ alter table public.orders
 
 alter table public.orders
   add column if not exists payment_status public.payment_status not null default 'pending';
+
+alter table public.orders
+  add column if not exists phone_number text;
+
+alter table public.orders
+  add column if not exists delivery_address text;
+
+alter table public.orders
+  add column if not exists delivery_landmark text;
+
+alter table public.orders
+  add column if not exists delivery_instructions text;
 
 create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
@@ -129,6 +149,36 @@ begin
     email = excluded.email,
     name = excluded.name,
     role = excluded.role;
+
+  if coalesce((new.raw_user_meta_data ->> 'role')::public.user_role, 'customer'::public.user_role) = 'vendor'::public.user_role then
+    insert into public.vendors (
+      id,
+      name,
+      type,
+      distance,
+      address,
+      avatar,
+      owner_user_id,
+      is_open
+    )
+    values (
+      'vendor-' || replace(left(new.id::text, 8), '-', ''),
+      coalesce(new.raw_user_meta_data ->> 'name', split_part(coalesce(new.email, ''), '@', 1), 'New Vendor'),
+      'Local Shop',
+      '0 km',
+      'Update your shop address',
+      '🏪',
+      new.id,
+      true
+    )
+    on conflict (owner_user_id) do update set
+      name = excluded.name,
+      type = excluded.type,
+      distance = excluded.distance,
+      address = excluded.address,
+      avatar = excluded.avatar,
+      is_open = excluded.is_open;
+  end if;
 
   return new;
 end;
@@ -172,11 +222,105 @@ on public.products for select
 to anon, authenticated
 using (true);
 
+drop policy if exists "Vendors insert products" on public.products;
+create policy "Vendors insert products"
+on public.products for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'vendor'
+  )
+);
+
+drop policy if exists "Vendors update products" on public.products;
+create policy "Vendors update products"
+on public.products for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'vendor'
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'vendor'
+  )
+);
+
+drop policy if exists "Vendors delete products" on public.products;
+create policy "Vendors delete products"
+on public.products for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'vendor'
+  )
+);
+
 drop policy if exists "Public read vendor_products" on public.vendor_products;
 create policy "Public read vendor_products"
 on public.vendor_products for select
 to anon, authenticated
 using (true);
+
+drop policy if exists "Vendors insert vendor_products" on public.vendor_products;
+create policy "Vendors insert vendor_products"
+on public.vendor_products for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'vendor'
+  )
+);
+
+drop policy if exists "Vendors update vendor_products" on public.vendor_products;
+create policy "Vendors update vendor_products"
+on public.vendor_products for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'vendor'
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'vendor'
+  )
+);
+
+drop policy if exists "Vendors delete vendor_products" on public.vendor_products;
+create policy "Vendors delete vendor_products"
+on public.vendor_products for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'vendor'
+  )
+);
 
 drop policy if exists "Profiles read own profile" on public.profiles;
 create policy "Profiles read own profile"

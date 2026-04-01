@@ -30,6 +30,7 @@ export interface Vendor {
   address: string;
   avatar: string;
   isOpen: boolean;
+  ownerUserId?: string;
 }
 
 export interface CartItem {
@@ -41,10 +42,16 @@ export type PaymentMethod = 'online' | 'cod';
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed';
 
+export type OrderStatus = 'placed' | 'accepted' | 'rejected' | 'cancelled' | 'out_for_delivery' | 'delivered';
+
 export interface Order {
+  deliveryAddress?: string;
+  deliveryInstructions?: string;
+  deliveryLandmark?: string;
+  phoneNumber?: string;
   id: string;
   items: CartItem[];
-  status: 'placed' | 'accepted' | 'out_for_delivery' | 'delivered';
+  status: OrderStatus;
   total: number;
   createdAt: string;
   vendorName: string;

@@ -1,8 +1,8 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
+import { getAuthenticatedHomeRoute, useAuth } from '@/lib/auth';
 
 export default function AuthRedirect() {
-  const { isAuthenticated, isLoading, profile } = useAuth();
+  const { hasVendorProfile, isAuthenticated, isLoading, profile } = useAuth();
 
   if (isLoading) {
     return (
@@ -24,9 +24,5 @@ export default function AuthRedirect() {
     );
   }
 
-  if (profile?.role === 'vendor') {
-    return <Navigate to="/vendor" replace />;
-  }
-
-  return <Navigate to="/customer" replace />;
+  return <Navigate to={getAuthenticatedHomeRoute(profile, hasVendorProfile)} replace />;
 }

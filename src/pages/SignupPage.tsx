@@ -4,10 +4,14 @@ import { AuthApiError } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth, type AppRole } from '@/lib/auth';
+import { getAuthenticatedHomeRoute, useAuth, type AppRole } from '@/lib/auth';
 
 function getAuthErrorMessage(error: unknown) {
   if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    if (error.message.includes('vendors.owner_user_id')) {
+      return 'Unable to create account. Run the latest database migration and try again.';
+    }
+
     if (error.message === 'Failed to fetch') {
       return 'Unable to reach Supabase. Check your internet connection, browser extensions, and Supabase project settings.';
     }
@@ -32,7 +36,7 @@ function getAuthErrorMessage(error: unknown) {
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, profile, signUp } = useAuth();
+  const { hasVendorProfile, isAuthenticated, isLoading, profile, signUp } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,8 +50,8 @@ export default function SignupPage() {
       return;
     }
 
-    navigate(profile.role === 'vendor' ? '/vendor' : '/customer', { replace: true });
-  }, [isAuthenticated, navigate, profile]);
+    navigate(getAuthenticatedHomeRoute(profile, hasVendorProfile), { replace: true });
+  }, [hasVendorProfile, isAuthenticated, navigate, profile]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -69,7 +73,7 @@ export default function SignupPage() {
         return;
       }
 
-      navigate(result.profile?.role === 'vendor' ? '/vendor' : '/customer', { replace: true });
+      navigate(getAuthenticatedHomeRoute(result.profile, result.hasVendorProfile), { replace: true });
     } catch (error) {
       console.error('[auth-ui] Signup submission failed', error);
       setErrorMessage(getAuthErrorMessage(error));

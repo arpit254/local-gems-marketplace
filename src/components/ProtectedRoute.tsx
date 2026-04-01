@@ -1,14 +1,16 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth, type AppRole } from '@/lib/auth';
+import { canAccessVendorDashboard, useAuth, type AppRole } from '@/lib/auth';
 
 export default function ProtectedRoute({
   children,
+  requiredRoles,
   requiredRole,
 }: {
   children: JSX.Element;
   requiredRole?: AppRole;
+  requiredRoles?: AppRole[];
 }) {
-  const { isAuthenticated, isLoading, profile } = useAuth();
+  const { hasVendorProfile, isAuthenticated, isLoading, profile } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -23,7 +25,13 @@ export default function ProtectedRoute({
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (requiredRole && profile?.role !== requiredRole) {
+  const allowedRoles = requiredRoles ?? (requiredRole ? [requiredRole] : undefined);
+
+  if ((requiredRole === 'vendor' || requiredRoles?.includes('vendor')) && !canAccessVendorDashboard(profile, hasVendorProfile)) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (allowedRoles && (!profile || !allowedRoles.includes(profile.role))) {
     return <Navigate to="/dashboard" replace />;
   }
 

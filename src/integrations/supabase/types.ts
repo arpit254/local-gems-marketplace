@@ -73,10 +73,14 @@ export type Database = {
           created_at: string
           customer_id: string
           customer_name: string
+          delivery_address: string | null
+          delivery_instructions: string | null
+          delivery_landmark: string | null
           id: string
           payment_method: "online" | "cod"
           payment_status: "pending" | "paid" | "failed"
-          status: "placed" | "accepted" | "out_for_delivery" | "delivered"
+          phone_number: string | null
+          status: "placed" | "accepted" | "rejected" | "cancelled" | "out_for_delivery" | "delivered"
           total: number
           updated_at: string
           vendor_id: string
@@ -85,10 +89,14 @@ export type Database = {
           created_at?: string
           customer_id?: string
           customer_name?: string
+          delivery_address?: string | null
+          delivery_instructions?: string | null
+          delivery_landmark?: string | null
           id?: string
           payment_method?: "online" | "cod"
           payment_status?: "pending" | "paid" | "failed"
-          status?: "placed" | "accepted" | "out_for_delivery" | "delivered"
+          phone_number?: string | null
+          status?: "placed" | "accepted" | "rejected" | "cancelled" | "out_for_delivery" | "delivered"
           total: number
           updated_at?: string
           vendor_id: string
@@ -97,10 +105,14 @@ export type Database = {
           created_at?: string
           customer_id?: string
           customer_name?: string
+          delivery_address?: string | null
+          delivery_instructions?: string | null
+          delivery_landmark?: string | null
           id?: string
           payment_method?: "online" | "cod"
           payment_status?: "pending" | "paid" | "failed"
-          status?: "placed" | "accepted" | "out_for_delivery" | "delivered"
+          phone_number?: string | null
+          status?: "placed" | "accepted" | "rejected" | "cancelled" | "out_for_delivery" | "delivered"
           total?: number
           updated_at?: string
           vendor_id?: string
@@ -215,6 +227,7 @@ export type Database = {
           id: string
           is_open: boolean
           name: string
+          owner_user_id: string | null
           rating: number
           review_count: number
           type: string
@@ -226,6 +239,7 @@ export type Database = {
           id?: string
           is_open?: boolean
           name: string
+          owner_user_id?: string | null
           rating?: number
           review_count?: number
           type: string
@@ -237,6 +251,7 @@ export type Database = {
           id?: string
           is_open?: boolean
           name?: string
+          owner_user_id?: string | null
           rating?: number
           review_count?: number
           type?: string
@@ -251,7 +266,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      order_status: "placed" | "accepted" | "out_for_delivery" | "delivered"
+      order_status: "placed" | "accepted" | "rejected" | "cancelled" | "out_for_delivery" | "delivered"
       payment_method: "online" | "cod"
       payment_status: "pending" | "paid" | "failed"
       user_role: "customer" | "vendor"

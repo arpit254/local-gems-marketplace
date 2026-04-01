@@ -5,21 +5,47 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useSubmitCheckout } from '@/hooks/use-marketplace';
 import { clearCheckoutSession, getCheckoutSession, simulateMockPayment } from '@/lib/checkout';
 import { useCart } from '@/lib/cart-context';
 import type { PaymentMethod } from '@/lib/mock-data';
 
+function getCheckoutErrorMessage(error: unknown) {
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    if (
+      error.message.includes('delivery_address') ||
+      error.message.includes('delivery_landmark') ||
+      error.message.includes('delivery_instructions') ||
+      error.message.includes('phone_number')
+    ) {
+      return 'Unable to place order. Run the latest order delivery details SQL and try again.';
+    }
+
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Could not create your order. Please try again.';
+}
+
 export default function PaymentPage() {
   const navigate = useNavigate();
   const submitCheckout = useSubmitCheckout();
   const { clearCart } = useCart();
+  const checkout = useMemo(() => getCheckoutSession(), []);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('cod');
   const [cardNumber, setCardNumber] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState(checkout?.deliveryAddress ?? '');
+  const [deliveryInstructions, setDeliveryInstructions] = useState(checkout?.deliveryInstructions ?? '');
+  const [deliveryLandmark, setDeliveryLandmark] = useState(checkout?.deliveryLandmark ?? '');
   const [upiId, setUpiId] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState(checkout?.phoneNumber ?? '');
   const [errorMessage, setErrorMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const checkout = useMemo(() => getCheckoutSession(), []);
 
   useEffect(() => {
     if (!checkout || checkout.items.length === 0) {
@@ -28,10 +54,38 @@ export default function PaymentPage() {
   }, [checkout, navigate]);
 
   if (!checkout || checkout.items.length === 0) {
-    return null;
+    return (
+      <div className="min-h-[calc(100vh-4rem)] px-4 py-10">
+        <div className="mx-auto max-w-xl rounded-2xl border bg-card p-8 text-center shadow-card">
+          <h1 className="font-display text-2xl font-bold text-foreground">Checkout not ready</h1>
+          <p className="mt-3 text-muted-foreground">
+            Add products to your cart first, then continue to payment from the cart page.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Button asChild className="border-none gradient-hero text-primary-foreground">
+              <Link to="/cart">Go to cart</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const isSubmitting = isProcessing || submitCheckout.isPending;
+
+  const validateDeliveryDetails = () => {
+    if (!phoneNumber.trim()) {
+      setErrorMessage('Please enter your phone number.');
+      return false;
+    }
+
+    if (!deliveryAddress.trim()) {
+      setErrorMessage('Please enter your delivery address.');
+      return false;
+    }
+
+    return true;
+  };
 
   const handleOrderSuccess = (paymentMethod: PaymentMethod, orderIds: string[]) => {
     clearCart();
@@ -48,11 +102,19 @@ export default function PaymentPage() {
   };
 
   const createCheckoutOrders = async (paymentMethod: PaymentMethod, paymentStatus: 'pending' | 'paid') => {
+    if (!validateDeliveryDetails()) {
+      return;
+    }
+
     const orderIds = await submitCheckout.mutateAsync({
       customerName: checkout.customerName,
+      deliveryAddress: deliveryAddress.trim(),
+      deliveryInstructions: deliveryInstructions.trim(),
+      deliveryLandmark: deliveryLandmark.trim(),
       items: checkout.items,
       paymentMethod,
       paymentStatus,
+      phoneNumber: phoneNumber.trim(),
     });
 
     handleOrderSuccess(paymentMethod, orderIds);
@@ -66,7 +128,7 @@ export default function PaymentPage() {
       await createCheckoutOrders('cod', 'pending');
     } catch (error) {
       console.error('[checkout] COD order creation failed', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Could not create your order. Please try again.');
+      setErrorMessage(getCheckoutErrorMessage(error));
     } finally {
       setIsProcessing(false);
     }
@@ -81,7 +143,7 @@ export default function PaymentPage() {
       await createCheckoutOrders('online', 'paid');
     } catch (error) {
       console.error('[checkout] Online payment flow failed', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Online payment failed. Please try again.');
+      setErrorMessage(getCheckoutErrorMessage(error));
     } finally {
       setIsProcessing(false);
     }
@@ -137,6 +199,50 @@ export default function PaymentPage() {
                   </div>
                 </button>
               ))}
+            </div>
+
+            <div className="mt-6 space-y-4 rounded-xl border bg-background p-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone-number">Phone Number</Label>
+                <Input
+                  id="phone-number"
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  placeholder="9876543210"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="delivery-address">Delivery Address</Label>
+                <Textarea
+                  id="delivery-address"
+                  value={deliveryAddress}
+                  onChange={(event) => setDeliveryAddress(event.target.value)}
+                  placeholder="House / flat number, street, area, city"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="delivery-landmark">Landmark</Label>
+                  <Input
+                    id="delivery-landmark"
+                    value={deliveryLandmark}
+                    onChange={(event) => setDeliveryLandmark(event.target.value)}
+                    placeholder="Near metro station"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="delivery-instructions">Delivery Instructions</Label>
+                  <Input
+                    id="delivery-instructions"
+                    value={deliveryInstructions}
+                    onChange={(event) => setDeliveryInstructions(event.target.value)}
+                    placeholder="Call before arrival"
+                  />
+                </div>
+              </div>
             </div>
 
             {selectedMethod === 'online' && (
@@ -223,7 +329,10 @@ export default function PaymentPage() {
                       {item.vendorProduct.product.image} {item.vendorProduct.product.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {item.vendorProduct.vendor.name} • Qty {item.quantity}
+                      <Link to={`/vendors/${item.vendorProduct.vendor.id}`} className="hover:text-primary">
+                        {item.vendorProduct.vendor.name}
+                      </Link>{' '}
+                      • Qty {item.quantity}
                     </p>
                   </div>
                   <p className="font-semibold text-foreground">Rs {item.vendorProduct.price * item.quantity}</p>
@@ -240,6 +349,12 @@ export default function PaymentPage() {
                 <span className="text-muted-foreground">Payment Method</span>
                 <span className="font-medium capitalize text-foreground">
                   {selectedMethod === 'cod' ? 'Cash on Delivery' : 'Online'}
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-muted-foreground">Deliver To</span>
+                <span className="max-w-[16rem] text-right text-foreground">
+                  {deliveryAddress.trim() || 'Add your address above'}
                 </span>
               </div>
               <div className="flex items-center justify-between border-t pt-3">

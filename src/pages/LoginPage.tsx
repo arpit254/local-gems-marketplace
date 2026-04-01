@@ -4,36 +4,24 @@ import { AuthApiError } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/lib/auth';
+import { getAuthenticatedHomeRoute, useAuth } from '@/lib/auth';
 
 function getAuthErrorMessage(error: unknown) {
-  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
-    if (error.message === 'Failed to fetch') {
-      return 'Unable to reach Supabase. Check your internet connection, browser extensions, and Supabase project settings.';
-    }
-
-    return error.message;
-  }
-
-  if (error instanceof TypeError && error.message === 'Failed to fetch') {
-    return 'Unable to reach Supabase. Check your internet connection, browser extensions, and Supabase project settings.';
-  }
-
   if (error instanceof AuthApiError) {
-    return error.message;
+    return 'Invalid login credentials.';
   }
 
-  if (error instanceof Error) {
-    return error.message;
+  if (error instanceof Error || typeof error === 'object' || typeof error === 'string') {
+    return 'Invalid login credentials.';
   }
 
-  return 'Something went wrong. Please try again.';
+  return 'Invalid login credentials.';
 }
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, isLoading, profile, signIn } = useAuth();
+  const { hasVendorProfile, isAuthenticated, isLoading, profile, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -48,9 +36,9 @@ export default function LoginPage() {
     }
 
     const from = typeof location.state?.from === 'string' ? location.state.from : null;
-    const fallbackRoute = profile.role === 'vendor' ? '/vendor' : '/customer';
+    const fallbackRoute = getAuthenticatedHomeRoute(profile, hasVendorProfile);
     navigate(from ?? fallbackRoute, { replace: true });
-  }, [isAuthenticated, location.state, navigate, profile]);
+  }, [hasVendorProfile, isAuthenticated, location.state, navigate, profile]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,7 +49,7 @@ export default function LoginPage() {
     try {
       const result = await signIn({ email, password });
       const from = typeof location.state?.from === 'string' ? location.state.from : null;
-      const fallbackRoute = result.profile.role === 'vendor' ? '/vendor' : '/customer';
+      const fallbackRoute = getAuthenticatedHomeRoute(result.profile, result.hasVendorProfile);
       navigate(from ?? fallbackRoute, { replace: true });
     } catch (error) {
       console.error('[auth-ui] Login submission failed', error);

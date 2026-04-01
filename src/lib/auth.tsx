@@ -24,15 +24,19 @@ type SignInInput = {
 };
 
 type SignInResult = {
+  hasVendorProfile: boolean;
   profile: UserProfile;
 };
 
 type SignUpResult = {
+  hasVendorProfile: boolean;
   profile: UserProfile | null;
   requiresEmailConfirmation: boolean;
 };
 
 type AuthContextValue = {
+  deleteAccount: () => Promise<void>;
+  hasVendorProfile: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
   profile: UserProfile | null;
@@ -57,6 +61,20 @@ async function fetchProfile(userId: string) {
   }
 
   return result.data as UserProfile | null;
+}
+
+async function fetchVendorProfile(userId: string) {
+  const result = await supabase
+    .from('vendors')
+    .select('id')
+    .eq('owner_user_id', userId)
+    .maybeSingle();
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return Boolean(result.data);
 }
 
 async function waitForProfile(userId: string, retries = 3, delayMs = 250) {
@@ -107,7 +125,43 @@ async function ensureProfile(user: User) {
   });
 }
 
+async function resolveVendorAccess(profile: UserProfile) {
+  if (profile.role !== 'vendor') {
+    return false;
+  }
+
+  return fetchVendorProfile(profile.id);
+}
+
+async function resolveUserAccount(user: User) {
+  const profile = await ensureProfile(user);
+  const hasVendorProfile = await resolveVendorAccess(profile);
+
+  return {
+    hasVendorProfile,
+    profile,
+  };
+}
+
+async function signOutInvalidVendor(userId: string) {
+  console.warn('[auth] Signing out vendor because no vendor row exists', { userId });
+  const result = await supabase.auth.signOut();
+
+  if (result.error) {
+    console.error('[auth] Failed to sign out invalid vendor session', { userId, message: result.error.message });
+  }
+}
+
+export function canAccessVendorDashboard(profile: UserProfile | null, hasVendorProfile: boolean) {
+  return profile?.role === 'vendor' && hasVendorProfile;
+}
+
+export function getAuthenticatedHomeRoute(profile: UserProfile | null, hasVendorProfile: boolean) {
+  return canAccessVendorDashboard(profile, hasVendorProfile) ? '/vendor' : '/customer';
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [hasVendorProfile, setHasVendorProfile] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -133,9 +187,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (data.session?.user) {
           console.info('[auth] Found persisted session', { userId: data.session.user.id });
-          const nextProfile = await ensureProfile(data.session.user);
+          const nextAccount = await resolveUserAccount(data.session.user);
+
+          if (nextAccount.profile.role === 'vendor' && !nextAccount.hasVendorProfile) {
+            await signOutInvalidVendor(data.session.user.id);
+
+            if (isMounted) {
+              setHasVendorProfile(false);
+              setProfile(null);
+              setSession(null);
+              setUser(null);
+            }
+
+            return;
+          }
+
           if (isMounted) {
-            setProfile(nextProfile);
+            setHasVendorProfile(nextAccount.hasVendorProfile);
+            setProfile(nextAccount.profile);
           }
         }
       } catch (error) {
@@ -159,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(nextSession?.user ?? null);
 
       if (!nextSession?.user) {
+        setHasVendorProfile(false);
         setProfile(null);
         setIsLoading(false);
         return;
@@ -167,8 +237,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       void fetchProfile(nextSession.user.id)
         .then((nextProfile) => nextProfile ?? ensureProfile(nextSession.user))
-        .then((nextProfile) => {
+        .then(async (nextProfile) => {
+          const nextHasVendorProfile = await resolveVendorAccess(nextProfile);
+
+          if (nextProfile.role === 'vendor' && !nextHasVendorProfile) {
+            await signOutInvalidVendor(nextSession.user.id);
+
+            if (isMounted) {
+              setHasVendorProfile(false);
+              setProfile(null);
+              setSession(null);
+              setUser(null);
+            }
+
+            return;
+          }
+
           if (isMounted) {
+            setHasVendorProfile(nextHasVendorProfile);
             setProfile(nextProfile);
           }
         })
@@ -189,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(() => ({
+    hasVendorProfile,
     isAuthenticated: Boolean(user),
     isLoading,
     profile,
@@ -206,12 +293,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Supabase did not return a user for this login attempt.');
       }
 
-      const savedProfile = await ensureProfile(result.data.user);
-      setProfile(savedProfile);
+      const account = await resolveUserAccount(result.data.user);
 
-      console.info('[auth] Sign in succeeded', { userId: result.data.user.id, role: savedProfile.role });
+      if (account.profile.role === 'vendor' && !account.hasVendorProfile) {
+        await signOutInvalidVendor(result.data.user.id);
+        setHasVendorProfile(false);
+        setProfile(null);
+        setSession(null);
+        setUser(null);
+        throw new Error('Account not found.');
+      }
 
-      return { profile: savedProfile };
+      setHasVendorProfile(account.hasVendorProfile);
+      setProfile(account.profile);
+
+      console.info('[auth] Sign in succeeded', {
+        hasVendorProfile: account.hasVendorProfile,
+        userId: result.data.user.id,
+        role: account.profile.role,
+      });
+
+      return { hasVendorProfile: account.hasVendorProfile, profile: account.profile };
     },
     signOut: async () => {
       console.info('[auth] Signing out current user');
@@ -221,6 +323,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('[auth] Sign out failed', { message: result.error.message });
         throw result.error;
       }
+    },
+    deleteAccount: async () => {
+      console.info('[auth] Deleting current user account');
+      const result = await supabase.rpc('delete_my_account');
+
+      if (result.error) {
+        console.error('[auth] Delete account failed', { message: result.error.message });
+        throw result.error;
+      }
+
+      setHasVendorProfile(false);
+      setProfile(null);
+      setSession(null);
+      setUser(null);
     },
     signUp: async ({ email, name, password, role }) => {
       console.info('[auth] Attempting sign up', { email, role });
@@ -254,21 +370,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (requiresEmailConfirmation) {
         return {
+          hasVendorProfile: false,
           profile: null,
           requiresEmailConfirmation: true,
         };
       }
 
-      const savedProfile = await ensureProfile(result.data.user);
-      setProfile(savedProfile);
+      const account = await resolveUserAccount(result.data.user);
+
+      if (account.profile.role === 'vendor' && !account.hasVendorProfile) {
+        await signOutInvalidVendor(result.data.user.id);
+        setHasVendorProfile(false);
+        setProfile(null);
+        setSession(null);
+        setUser(null);
+        throw new Error('Account not found.');
+      }
+
+      setHasVendorProfile(account.hasVendorProfile);
+      setProfile(account.profile);
 
       return {
-        profile: savedProfile,
+        hasVendorProfile: account.hasVendorProfile,
+        profile: account.profile,
         requiresEmailConfirmation: false,
       };
     },
     user,
-  }), [isLoading, profile, session, user]);
+  }), [hasVendorProfile, isLoading, profile, session, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
