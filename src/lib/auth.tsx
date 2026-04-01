@@ -326,7 +326,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     deleteAccount: async () => {
       console.info('[auth] Deleting current user account');
-      const result = await supabase.rpc('delete_my_account' as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (supabase.rpc as any)('delete_my_account');
 
       if (result.error) {
         console.error('[auth] Delete account failed', { message: result.error.message });
