@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, CheckCircle, Edit, Package, Plus, ShoppingBag, Trash2, TrendingUp, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Edit, Package, Plus, ShoppingBag, Trash2, Truck, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import AccountDangerZone from '@/components/AccountDangerZone';
