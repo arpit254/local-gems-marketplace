@@ -480,23 +480,31 @@ export default function VendorDashboard() {
                   id="category"
                   value={formState.categoryId}
                   onChange={(event) => setFormState((current) => ({ ...current, categoryId: event.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 >
+                  <option value="" disabled>Select category</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
-                      {category.name}
+                      {category.emoji} {category.name}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="emoji">Emoji / Image</Label>
-                <Input
+                <select
                   id="emoji"
                   value={formState.image}
                   onChange={(event) => setFormState((current) => ({ ...current, image: event.target.value }))}
-                  placeholder="🥬"
-                />
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <option value="" disabled>Select emoji</option>
+                  {['🍅', '🧅', '🥔', '🥬', '🌶️', '🥛', '🫕', '🍎', '🍌', '🍉', '🍞', '🥚', '🍚', '🍟', '🍪', '🧃', '🧀', '🥩', '🐄', '🍿', '🥕', '🌽', '🍇', '🍊', '🥭', '🫘', '🧈', '🍯', '🫙', '🥜'].map((emoji) => (
+                    <option key={emoji} value={emoji}>
+                      {emoji}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
