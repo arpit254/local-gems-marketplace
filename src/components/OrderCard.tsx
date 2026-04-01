@@ -2,13 +2,13 @@ import { CheckCircle, Clock, Package, Truck, Wallet, XCircle } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import type { Order } from '@/lib/mock-data';
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; step: number }> = {
   accepted: { label: 'Accepted', icon: CheckCircle, step: 2 },
   cancelled: { label: 'Cancelled', icon: XCircle, step: 1 },
   delivered: { label: 'Delivered', icon: CheckCircle, step: 4 },
   out_for_delivery: { label: 'Out for Delivery', icon: Truck, step: 3 },
   placed: { label: 'Order Placed', icon: Package, step: 1 },
-  rejected: { label: 'Rejected', icon: XCircle, step: 1 },
+  to_be_confirmed: { label: 'To Be Confirmed', icon: Clock, step: 0 },
 };
 
 const paymentStatusLabels = {
@@ -40,7 +40,7 @@ export default function OrderCard({
           className={`rounded-full px-3 py-1 text-xs font-medium ${
             order.status === 'delivered'
               ? 'bg-accent text-accent-foreground'
-              : order.status === 'cancelled' || order.status === 'rejected'
+              : order.status === 'cancelled'
                 ? 'bg-destructive/10 text-destructive'
                 : 'bg-secondary/10 text-secondary'
           }`}

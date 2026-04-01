@@ -363,7 +363,7 @@ export default function VendorDashboard() {
                         ? 'bg-secondary/10 text-secondary'
                       : order.status === 'accepted'
                         ? 'bg-accent text-accent-foreground'
-                        : order.status === 'rejected'
+                        : order.status === 'cancelled'
                           ? 'bg-destructive/10 text-destructive'
                           : 'bg-muted text-muted-foreground'
                     }`}
@@ -391,7 +391,7 @@ export default function VendorDashboard() {
                         variant="outline"
                         className="text-destructive"
                         disabled={updateOrderStatus.isPending}
-                        onClick={() => void handleUpdateOrderStatus(order.id, 'rejected')}
+                        onClick={() => void handleUpdateOrderStatus(order.id, 'cancelled')}
                       >
                         <X className="mr-1 h-4 w-4" /> Reject
                       </Button>

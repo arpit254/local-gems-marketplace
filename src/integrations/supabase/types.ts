@@ -22,7 +22,7 @@ export type Database = {
         }
         Insert: {
           emoji: string
-          id?: string
+          id: string
           name: string
         }
         Update: {
@@ -77,10 +77,10 @@ export type Database = {
           delivery_instructions: string | null
           delivery_landmark: string | null
           id: string
-          payment_method: "online" | "cod"
-          payment_status: "pending" | "paid" | "failed"
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          payment_status: Database["public"]["Enums"]["payment_status"]
           phone_number: string | null
-          status: "placed" | "accepted" | "rejected" | "cancelled" | "out_for_delivery" | "delivered"
+          status: Database["public"]["Enums"]["order_status"]
           total: number
           updated_at: string
           vendor_id: string
@@ -93,10 +93,10 @@ export type Database = {
           delivery_instructions?: string | null
           delivery_landmark?: string | null
           id?: string
-          payment_method?: "online" | "cod"
-          payment_status?: "pending" | "paid" | "failed"
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          payment_status?: Database["public"]["Enums"]["payment_status"]
           phone_number?: string | null
-          status?: "placed" | "accepted" | "rejected" | "cancelled" | "out_for_delivery" | "delivered"
+          status?: Database["public"]["Enums"]["order_status"]
           total: number
           updated_at?: string
           vendor_id: string
@@ -109,10 +109,10 @@ export type Database = {
           delivery_instructions?: string | null
           delivery_landmark?: string | null
           id?: string
-          payment_method?: "online" | "cod"
-          payment_status?: "pending" | "paid" | "failed"
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          payment_status?: Database["public"]["Enums"]["payment_status"]
           phone_number?: string | null
-          status?: "placed" | "accepted" | "rejected" | "cancelled" | "out_for_delivery" | "delivered"
+          status?: Database["public"]["Enums"]["order_status"]
           total?: number
           updated_at?: string
           vendor_id?: string
@@ -136,7 +136,7 @@ export type Database = {
         }
         Insert: {
           category_id: string
-          id?: string
+          id: string
           image: string
           name: string
         }
@@ -161,19 +161,19 @@ export type Database = {
           email: string
           id: string
           name: string
-          role: "customer" | "vendor"
+          role: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
           email: string
           id: string
           name: string
-          role: "customer" | "vendor"
+          role: Database["public"]["Enums"]["user_role"]
         }
         Update: {
           email?: string
           id?: string
           name?: string
-          role?: "customer" | "vendor"
+          role?: Database["public"]["Enums"]["user_role"]
         }
         Relationships: []
       }
@@ -187,7 +187,7 @@ export type Database = {
           vendor_id: string
         }
         Insert: {
-          id?: string
+          id: string
           in_stock?: boolean
           price: number
           product_id: string
@@ -236,7 +236,7 @@ export type Database = {
           address: string
           avatar: string
           distance: string
-          id?: string
+          id: string
           is_open?: boolean
           name: string
           owner_user_id?: string | null
@@ -266,7 +266,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      order_status: "placed" | "accepted" | "rejected" | "cancelled" | "out_for_delivery" | "delivered"
+      order_status:
+        | "to_be_confirmed"
+        | "placed"
+        | "accepted"
+        | "out_for_delivery"
+        | "delivered"
+        | "cancelled"
       payment_method: "online" | "cod"
       payment_status: "pending" | "paid" | "failed"
       user_role: "customer" | "vendor"
@@ -396,6 +402,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      order_status: [
+        "to_be_confirmed",
+        "placed",
+        "accepted",
+        "out_for_delivery",
+        "delivered",
+        "cancelled",
+      ],
+      payment_method: ["online", "cod"],
+      payment_status: ["pending", "paid", "failed"],
+      user_role: ["customer", "vendor"],
+    },
   },
 } as const

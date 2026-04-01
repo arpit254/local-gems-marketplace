@@ -42,7 +42,7 @@ export type PaymentMethod = 'online' | 'cod';
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed';
 
-export type OrderStatus = 'placed' | 'accepted' | 'rejected' | 'cancelled' | 'out_for_delivery' | 'delivered';
+export type OrderStatus = 'to_be_confirmed' | 'placed' | 'accepted' | 'cancelled' | 'out_for_delivery' | 'delivered';
 
 export interface Order {
   deliveryAddress?: string;
